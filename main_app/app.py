@@ -9,7 +9,7 @@ class App():
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("BSK")
-        self.root.geometry("200x150")
+        self.root.geometry("200x300")
         self.mainframe = tk.Frame(self.root, bg="white")
         self.mainframe.pack(fill=tk.BOTH, expand=True)
         
@@ -18,6 +18,9 @@ class App():
         
         self.verify_button = tk.Button(self.mainframe, text="Verify Signature", command=self.verify_pdf)
         self.verify_button.pack(pady=20)
+
+        self.status = tk.Label(self.mainframe, text='No PDF selected', height=10, width=40)
+        self.status.pack(pady=20)
         
         self.root.mainloop()
         
@@ -64,18 +67,22 @@ class App():
             return None
     
     def sign_pdf(self):
+        self.status.config(text='Selecting PDF...')
         file_path = self.open_file()
         
         if not file_path:
+            self.status.config(text='No PDF selected')
             messagebox.showerror("Error", "No file selected")
             return
 
         pin = self.get_pin()
         if not pin:
+            self.status.config(text='No PDF selected')
             return
-
+        self.status.config(text='Reading private key...')
         private_key = self.read_private_key(pin)
         if not private_key:
+            self.status.config(text='No PDF selected')
             return
 
         with open(file_path, "rb") as f:
@@ -95,6 +102,7 @@ class App():
             f.write(signature)
 
         messagebox.showinfo("Success", "PDF file signed!")
+        self.status.config(text='PDF signed!')
     
     def get_pub_key(self):
         try:
@@ -107,9 +115,11 @@ class App():
             return
         
     def verify_pdf(self):
+        self.status.config(text='Selecting PDF...')
         try:
             file_path = self.open_file()
             if not file_path:
+                self.status.config(text='No PDF selected')
                 messagebox.showerror("Error", "No file selected")
                 return
 
@@ -118,6 +128,7 @@ class App():
                 
             pub_key = self.get_pub_key()
             if not pub_key:
+                self.status.config(text='No PDF selected')
                 return
             
             SIGNATURE_LENGTH = pub_key.key_size // 8
@@ -128,15 +139,17 @@ class App():
             digest = hashes.Hash(hashes.SHA256())
             digest.update(pdf_data)
             expected_hash = digest.finalize()
-            
+            self.status.config(text='Verifying...')
             pub_key.verify(
                 signature,
                 expected_hash,
                 padding.PKCS1v15(),
                 hashes.SHA256()
             )
+            self.status.config(text='Signature validated')
             messagebox.showinfo("Success", "Signature is valid!")
         except Exception as e:
+            self.status.config(text='Signature is invalid!')
             messagebox.showerror("Error", f"Signature is invalid! {e}")
         
         
