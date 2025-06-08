@@ -5,6 +5,8 @@ __pycache__/
 .idea
 html/
 latex/
+aux_app/encrypted.pub
+aux_app/encrypted
 # C extensions
 *.so
 
