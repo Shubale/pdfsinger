@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
 from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 
@@ -24,14 +25,11 @@ class App():
         file_path = filedialog.askopenfilename(filetypes=[("PDF files", "*.pdf")])
         return file_path
     
-    def decrypt_private_key(self, pin):
+    def decrypt_private_key(self, pin, encrypted_key):
         try:
             if not len(pin.encode('utf-8')) == 16:
                 messagebox.showerror("Error", f"PIN number has to have 16 bytes")
                 return None
-        
-            with open("encrypted", "rb") as key_file:
-                encrypted_key = eval(key_file.read())
         
             digest = hashes.Hash(hashes.SHA256())
             digest.update(pin.encode('utf-8'))
@@ -55,30 +53,90 @@ class App():
         pin = simpledialog.askstring("PIN", "Enter pin:", show="*")
         return pin
     
-    def sign_pdf(self):
-        file = self.open_file()
-        if file:
-            pin = self.get_pin()
-            private_key = self.decrypt_private_key(pin)
-            
-            print("Debug: <<pdf sign>>")
-            
-        else:
-            messagebox.showerror("Error", "No file selected")
-        return
+    def read_private_key(self, pin):
+        usb_path = "G:\\encrypted"
+        try:
+            with open(usb_path, "rb") as f:
+                key = f.read()
+                return self.decrypt_private_key(pin, key)
+        except:
+            messagebox.showerror("Error", "Failed to read private key file")
+            return None
     
-    def verify_pdf(self):
-        file = self.open_file()
-        if file:
-            loading_window = tk.Toplevel(self.root)
-            loading_window.geometry("200x50")
-            tk.Label(loading_window, text="Reading file").pack(pady=10)
-            loading_window.update()
-            
-            self.root.after(1000, loading_window.destroy)
+    def sign_pdf(self):
+        file_path = self.open_file()
         
-            pub_key = self.get_pub_key()
-            messagebox.showinfo("Info", f"File: {file}\nPin: {pub_key}")
-        else:
+        if not file_path:
             messagebox.showerror("Error", "No file selected")
-        return
+            return
+
+        pin = self.get_pin()
+        if not pin:
+            return
+
+        private_key = self.read_private_key(pin)
+        if not private_key:
+            return
+
+        with open(file_path, "rb") as f:
+            pdf_data = f.read()
+
+        digest = hashes.Hash(hashes.SHA256())
+        digest.update(pdf_data)
+        hash_bytes = digest.finalize()
+
+        signature = private_key.sign(
+            hash_bytes,
+            padding.PKCS1v15(),
+            hashes.SHA256()
+        )
+
+        with open(file_path, "ab") as f:
+            f.write(signature)
+
+        messagebox.showinfo("Success", "PDF file signed!")
+    
+    def get_pub_key(self):
+        try:
+            with open("encrypted.pub", "rb") as pub_file:
+                pub_data = pub_file.read()
+                pub_key = serialization.load_pem_public_key(pub_data)
+                return pub_key
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load public key! {e}")
+            return
+        
+    def verify_pdf(self):
+        try:
+            file_path = self.open_file()
+            if not file_path:
+                messagebox.showerror("Error", "No file selected")
+                return
+
+            with open(file_path, "rb") as f:
+                full_data = f.read()
+                
+            pub_key = self.get_pub_key()
+            if not pub_key:
+                return
+            
+            SIGNATURE_LENGTH = pub_key.key_size // 8
+
+            pdf_data = full_data[:-SIGNATURE_LENGTH]
+            signature = full_data[-SIGNATURE_LENGTH:]
+
+            digest = hashes.Hash(hashes.SHA256())
+            digest.update(pdf_data)
+            expected_hash = digest.finalize()
+            
+            pub_key.verify(
+                signature,
+                expected_hash,
+                padding.PKCS1v15(),
+                hashes.SHA256()
+            )
+            messagebox.showinfo("Success", "Signature is valid!")
+        except Exception as e:
+            messagebox.showerror("Error", f"Signature is invalid! {e}")
+        
+        

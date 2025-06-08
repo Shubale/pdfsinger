@@ -30,14 +30,14 @@ def generate_rsa_pair(s):
 
     cipher = AES.new(key, AES.MODE_ECB)
     ciphertext = cipher.encrypt(pad(pem, BLOCK_SIZE))
-    f = open("encrypted", "w")
-    f.write(str(ciphertext))
+    f = open("encrypted", "wb")
+    f.write(ciphertext)
     f.close()
-    f = open("encrypted.pub", "w")
-    f.write(str(public_key.public_bytes(
+    f = open("encrypted.pub", "wb")
+    f.write(public_key.public_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
-    )))
+    ))
     f.close()
     decrypt_cipher = AES.new(key, AES.MODE_ECB)
     decrypted = (unpad(decrypt_cipher.decrypt(ciphertext), BLOCK_SIZE))
