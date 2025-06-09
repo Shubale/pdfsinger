@@ -57,14 +57,17 @@ class App():
         return pin
     
     def read_private_key(self, pin):
-        usb_path = "G:\\encrypted"
-        try:
-            with open(usb_path, "rb") as f:
-                key = f.read()
-                return self.decrypt_private_key(pin, key)
-        except:
-            messagebox.showerror("Error", "Failed to read private key file")
-            return None
+        for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+            usb_path = f"{letter}:\\encrypted"
+            try:
+                with open(usb_path, "rb") as f:
+                    key = f.read()
+                    return self.decrypt_private_key(pin, key)
+            except FileNotFoundError:
+                continue
+            
+        messagebox.showerror("Error", "No private key found")
+        
     
     def sign_pdf(self):
         self.status.config(text='Selecting PDF...')
